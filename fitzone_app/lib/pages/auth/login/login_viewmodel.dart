@@ -9,11 +9,13 @@ class LoginViewModel extends BaseViewModel {
     setLoading(false);
   }
 
-  Future<void> verifyOtp(String otp) async {
+  Future<bool> verifyOtp(String otp) async {
     setLoading(true);
 
     await Future.delayed(const Duration(seconds: 2));
 
     setLoading(false);
+
+    return true;
   }
 }

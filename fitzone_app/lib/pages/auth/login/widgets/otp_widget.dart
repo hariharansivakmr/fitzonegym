@@ -1,3 +1,5 @@
+import 'package:fitzone_app/pages/dashboard/dashboard_view.dart';
+import 'package:fitzone_app/utilities/helpers/navigation_helper.dart';
 import 'package:flutter/material.dart';
 
 class OtpWidget extends StatelessWidget {
@@ -35,7 +37,9 @@ class OtpWidget extends StatelessWidget {
           width: double.infinity,
           child: ElevatedButton(
           onPressed: () {
-            onVerify(controller.text);
+            
+              NavigationHelper.goToDashboard(context);
+            
           },
           child: const Text("Verify OTP"),
         ))
