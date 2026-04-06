@@ -1,4 +1,5 @@
 import 'package:fitzone_app/pages/dashboard/dashboard_viewmodel.dart';
+import 'package:fitzone_app/pages/members/member_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,10 +22,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => DashboardViewModel(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => MemberViewModel(),
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
         home: const LoginView(),
       ),
     );

@@ -17,6 +17,7 @@ class _DashboardViewState extends State<DashboardView> {
   void initState() {
     super.initState();
     Future.microtask(() =>
+        // ignore: use_build_context_synchronously
         context.read<DashboardViewModel>().fetchDashboardData());
   }
 
