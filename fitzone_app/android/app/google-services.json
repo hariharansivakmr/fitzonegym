@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "309215213769",
+    "project_id": "fitzone-2500",
+    "storage_bucket": "fitzone-2500.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:309215213769:android:6803200f4591f9b1d0f518",
+        "android_client_info": {
+          "package_name": "com.appseverywhere.fitzone_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANjuOy9UNtxUGnNqYTXX25p0DTAEJNqgI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
