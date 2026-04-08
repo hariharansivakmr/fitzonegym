@@ -8,12 +8,13 @@ import 'utilities/theme/app_theme.dart';
 import 'pages/auth/login/login_view.dart';
 import 'pages/auth/login/login_viewmodel.dart';
 
-void main() async {
+void main() async{
   WidgetsFlutterBinding.ensureInitialized(); // ✅ Required
 
-  await Firebase.initializeApp(
+  var a = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  print(a.options.projectId); // ✅ Just to verify initialization
 
   runApp(const MyApp());
 }

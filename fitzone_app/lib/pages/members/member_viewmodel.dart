@@ -1,82 +1,174 @@
+import 'package:fitzone_app/pages/common/planmodel.dart';
+import 'package:fitzone_app/pages/members/member_model.dart';
+import 'package:fitzone_app/pages/payments/payment_model.dart';
+import 'package:fitzone_app/services/FirebaseServices/MemberService.dart';
+import 'package:fitzone_app/services/FirebaseServices/PaymentService.dart';
+import 'package:fitzone_app/services/FirebaseServices/PlanService.dart';
 import 'package:flutter/material.dart';
-import 'member_model.dart';
-
-class PlanModel {
-  final String name;
-  final double price;
-  final int durationMonths;
-
-  PlanModel({
-    required this.name,
-    required this.price,
-    required this.durationMonths,
-  });
-}
 
 class MemberViewModel extends ChangeNotifier {
+  final MemberService _memberService = MemberService();
+  final PaymentService _paymentService = PaymentService();
+
+  /// 🔥 State
   List<MemberModel> members = [];
+  Map<String, PaymentModel?> lastPayments = {}; // 🔥 memberId -> last payment
 
-  /// 🔥 Plans (USED for dropdown + suggested)
-  List<PlanModel> plans = [
-    PlanModel(name: "Monthly", price: 1500, durationMonths: 1),
-    PlanModel(name: "Quarterly", price: 4000, durationMonths: 3),
-    PlanModel(name: "Yearly", price: 12000, durationMonths: 12),
-  ];
+  bool isLoading = false;
+  String? errorMessage;
 
-  /// 🔥 Selected values
-  String? selectedPlan;
-  double? selectedFees;
+  /// 🔥 Selected Plan (UI only)
+  String? selectedPlanId;
 
-  DateTime calculateNextDueDate(DateTime joinDate, int months) {
-    return DateTime(joinDate.year, joinDate.month + months, joinDate.day);
+  final PlanService _planService = PlanService();
+
+  List<PlanModel> plans = [];
+
+  MemberViewModel() {
+    fetchMembers();
+    listenMembers();
+    fetchPlans();
   }
 
-  void fetchMembers() {
-    members = [
-      MemberModel(
-        name: "Hariharan",
-        mobile: "9876543210",
-        plan: "Monthly",
-        fees: 1500,
-        isPaid: true,
-        joinDate: DateTime.now(),
-        nextDueDate: DateTime.now().add(const Duration(days: 30)),
-      ),
-      MemberModel(
-        name: "Arjun",
-        mobile: "9876543211",
-        plan: "Quarterly",
-        fees: 3500,
-        isPaid: false,
-        joinDate: DateTime.now(),
-        nextDueDate: DateTime.now().add(const Duration(days: 30)),
-      ),
-    ];
+  // ============================================================
+  // 🔥 FETCH MEMBERS + LAST PAYMENT
+  // ============================================================
 
-    notifyListeners();
+  Future<void> fetchMembers() async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final data = await _memberService.getMembers();
+
+      members = data.map((e) => MemberModel.fromMap(e)).toList();
+      print("Fetched ${members.length} members");
+      // 🔥 Fetch last payment for each member
+      await _fetchLastPayments();
+
+      errorMessage = null;
+    } catch (e) {
+      errorMessage = e.toString();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
-  void selectPlan(PlanModel plan) {
-    selectedPlan = plan.name;
-    selectedFees = plan.price;
-    notifyListeners();
+  // ============================================================
+  // 🔥 REAL-TIME MEMBERS
+  // ============================================================
+
+  void listenMembers() {
+    _memberService.streamMembers().listen((data) async {
+      members = data.map((e) => MemberModel.fromMap(e)).toList();
+
+      await _fetchLastPayments();
+
+      notifyListeners();
+    });
   }
 
-  void addMember(MemberModel member) {
-    members.add(member);
-    notifyListeners();
+  // ============================================================
+  // 🔥 FETCH LAST PAYMENT PER MEMBER
+  // ============================================================
+
+  Future<void> _fetchLastPayments() async {
+    for (var member in members) {
+      final payments =
+          await _paymentService.getPaymentsByMember(member.id!);
+
+      if (payments.isNotEmpty) {
+        lastPayments[member.id!] = payments.first; // latest payment
+      } else {
+        lastPayments[member.id!] = null;
+      }
+    }
   }
 
-  void clearForm() {
-    selectedPlan = null;
-    selectedFees = null;
-    notifyListeners();
+  // ============================================================
+  // 🔥 ADD MEMBER
+  // ============================================================
+
+  Future<void> addMember(MemberModel member) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      await _memberService.addMember(member.toMap());
+
+      await fetchMembers();
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
+
+  // ============================================================
+  // 🔥 UPDATE MEMBER
+  // ============================================================
+
+  Future<void> updateMember(MemberModel member) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      await _memberService.updateMember(member.id!, member.toMap());
+
+      await fetchMembers();
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ============================================================
+  // 🔥 DELETE MEMBER
+  // ============================================================
+
+  Future<void> deleteMember(MemberModel member) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      await _memberService.deleteMember(member.id!);
+
+      await fetchMembers();
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ============================================================
+  // 🔥 GET LAST PAYMENT (FOR UI)
+  // ============================================================
+
+  PaymentModel? getLastPayment(String memberId) {
+    return lastPayments[memberId];
+  }
+
+  void selectPlan(String? planId) {
+      selectedPlanId = planId;
+      notifyListeners();
+    }
+
+  // ============================================================
+  // 🔥 VALIDATION
+  // ============================================================
 
   String? validateMember({
     required String name,
     required String mobile,
-    required String feesText,
   }) {
     if (name.trim().isEmpty) {
       return "Name is required";
@@ -90,28 +182,26 @@ class MemberViewModel extends ChangeNotifier {
       return "Enter valid 10-digit mobile number";
     }
 
-    if (selectedPlan == null) {
+    if (selectedPlanId == null) {
       return "Please select a plan";
     }
 
-    final fees = double.tryParse(feesText);
-    if (fees == null || fees <= 0) {
-      return "Enter valid fees amount";
-    }
-
-    return null; // ✅ valid
+    return null;
   }
 
-  void deleteMember(MemberModel member) {
-    members.remove(member);
-    notifyListeners();
+  DateTime calculateNextDueDate(DateTime date, int months) {
+    return DateTime(date.year, date.month + months, date.day);
   }
 
-  void updateMember(MemberModel oldMember, MemberModel updatedMember) {
-    final index = members.indexOf(oldMember);
-    if (index != -1) {
-      members[index] = updatedMember;
+  Future<void> fetchPlans() async {
+    try {
+      plans = await _planService.getPlans();
+      for (var plan in plans) {
+        print("Plan: ${plan.type}, Duration: ${plan.duration} months, Price: ${plan.fees}");
+      }
       notifyListeners();
+    } catch (e) {
+      errorMessage = e.toString();
     }
   }
 }

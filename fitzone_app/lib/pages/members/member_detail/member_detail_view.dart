@@ -12,21 +12,19 @@ class MemberDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.read<MemberViewModel>();
+    final vm = context.watch<MemberViewModel>();
+    final lastPayment = vm.getLastPayment(member.id!);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Member Details"),
-        
       ),
 
-      /// 🔥 SCROLLABLE BODY
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             /// 🔥 PROFILE HEADER
             Container(
               padding: const EdgeInsets.all(20),
@@ -36,8 +34,6 @@ class MemberDetailView extends StatelessWidget {
               ),
               child: Column(
                 children: [
-
-                  /// Avatar
                   CircleAvatar(
                     radius: 35,
                     backgroundColor: AppColors.primary,
@@ -52,7 +48,6 @@ class MemberDetailView extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  /// Name
                   Text(
                     member.name,
                     style: const TextStyle(
@@ -63,18 +58,17 @@ class MemberDetailView extends StatelessWidget {
 
                   const SizedBox(height: 4),
 
-                  /// Mobile
                   Text(
-                    member.mobile,
+                    member.phone,
                     style: const TextStyle(color: Colors.grey),
                   ),
 
                   const SizedBox(height: 12),
 
-                  /// Status Badge
+                  /// 🔥 STATUS
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: member.isPaid
                           ? Colors.green.withOpacity(0.2)
@@ -96,14 +90,41 @@ class MemberDetailView extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            /// 🔥 DETAILS CARD
+            /// 🔥 PAYMENT SUMMARY
             _card(
-              title: "Membership Details",
+              title: "Payment Summary",
               children: [
-                _row("Plan", member.plan),
-                _row("Fees", "₹${member.fees}"),
-                _row("Join Date", _formatDate(member.joinDate)),
-                _row("Next Due Date", _formatDate(member.nextDueDate)),
+                _row("Pending Amount",
+                    "₹${member.pendingAmount.toStringAsFixed(0)}"),
+                _row("Due Date", _formatDate(member.dueDate)),
+                _row("Last Paid Month", member.lastPaidMonth),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            /// 🔥 LAST PAYMENT DETAILS
+            _card(
+              title: "Last Payment",
+              children: [
+                _row(
+                  "Amount",
+                  lastPayment != null
+                      ? "₹${lastPayment.amountPaid}"
+                      : "N/A",
+                ),
+                _row(
+                  "Month",
+                  lastPayment != null
+                      ? lastPayment.forMonth
+                      : "N/A",
+                ),
+                _row(
+                  "Date",
+                  lastPayment != null
+                      ? _formatDate(lastPayment.paidDate)
+                      : "N/A",
+                ),
               ],
             ),
 
@@ -155,7 +176,8 @@ class MemberDetailView extends StatelessWidget {
     );
   }
 
-  /// 🔥 COMMON CARD
+  // ============================================================
+
   Widget _card({
     required String title,
     required List<Widget> children,
@@ -200,13 +222,13 @@ class MemberDetailView extends StatelessWidget {
     return "${date.day}/${date.month}/${date.year}";
   }
 
-  /// 🔥 DELETE CONFIRMATION
   void _showDeleteDialog(BuildContext context, MemberViewModel vm) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Delete Member"),
-        content: const Text("Are you sure you want to delete this member?"),
+        content:
+            const Text("Are you sure you want to delete this member?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),

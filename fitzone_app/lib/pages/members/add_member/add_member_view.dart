@@ -17,7 +17,6 @@ class AddMemberView extends StatefulWidget {
 class _AddMemberViewState extends State<AddMemberView> {
   final nameController = TextEditingController();
   final mobileController = TextEditingController();
-  final feesController = TextEditingController();
 
   DateTime selectedDate = DateTime.now();
 
@@ -26,28 +25,26 @@ class _AddMemberViewState extends State<AddMemberView> {
     super.initState();
 
     final vm = context.read<MemberViewModel>();
+    vm.selectedPlanId = null; // 🔥 RESET
+    vm.fetchPlans();
 
     if (widget.isEdit && widget.member != null) {
       final m = widget.member!;
 
       nameController.text = m.name;
-      mobileController.text = m.mobile;
-      feesController.text = m.fees.toString();
+      mobileController.text = m.phone;
 
       selectedDate = m.joinDate;
 
-      vm.selectedPlan = m.plan;
-      vm.selectedFees = m.fees;
+      vm.selectedPlanId = m.planId;
     }
   }
 
-  /// 🔥 CLEAR ALL
   void clearAll(MemberViewModel vm) {
     nameController.clear();
     mobileController.clear();
-    feesController.clear();
     selectedDate = DateTime.now();
-    vm.clearForm();
+    vm.selectedPlanId = null;
     setState(() {});
   }
 
@@ -55,60 +52,38 @@ class _AddMemberViewState extends State<AddMemberView> {
   Widget build(BuildContext context) {
     final vm = context.watch<MemberViewModel>();
 
-    /// 🔥 AUTO FILL FEES
-    if (vm.selectedFees != null &&
-        feesController.text != vm.selectedFees?.toStringAsFixed(0)) {
-      feesController.text = vm.selectedFees!.toStringAsFixed(0);
-    }
-
     return Scaffold(
-    backgroundColor: AppColors.background,
-    appBar: AppBar(
-      title: Text(widget.isEdit
-          ? "Edit Member"
-          : "New Member Registration"),
-    ),
-    body: SingleChildScrollView(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(widget.isEdit ? "Edit Member" : "New Member"),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            /// 🔥 FORM CARD
             _card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  
-      
                   _textField("Full Name", nameController),
                   const SizedBox(height: 12),
-      
+
                   _textField(
                     "Mobile Number",
                     mobileController,
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 12),
-      
-                  /// 🔥 FULL WIDTH JOIN DATE
+
                   _dateField(),
                   const SizedBox(height: 12),
-      
-                  /// 🔥 DROPDOWN
+
                   _planDropdown(vm),
                   const SizedBox(height: 12),
-      
-                  _textField(
-                    "Fees Amount (₹)",
-                    feesController,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-      
-                  /// 🔥 NEXT DUE DATE
+
                   _nextDueDate(vm),
                   const SizedBox(height: 16),
-      
-                  /// INFO BOX
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -117,14 +92,13 @@ class _AddMemberViewState extends State<AddMemberView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
-                      "A welcome WhatsApp message will be sent automatically.",
+                      "WhatsApp welcome message will be sent automatically.",
                       style: TextStyle(color: Colors.green),
                     ),
                   ),
-      
+
                   const SizedBox(height: 16),
-      
-                  /// 🔥 BUTTONS
+
                   Row(
                     children: [
                       Expanded(
@@ -133,93 +107,69 @@ class _AddMemberViewState extends State<AddMemberView> {
                             backgroundColor: AppColors.primary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          onPressed: () {
-                            final vm = context.read<MemberViewModel>();
-      
+                          onPressed: () async {
                             final error = vm.validateMember(
                               name: nameController.text,
                               mobile: mobileController.text,
-                              feesText: feesController.text,
                             );
-      
+
                             if (error != null) {
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(SnackBar(content: Text(error)));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(error)),
+                              );
                               return;
                             }
-      
-                            final selectedPlanObj = vm.plans.firstWhere(
-                              (p) => p.name == vm.selectedPlan,
-                            );
-      
-                            final nextDueDate = vm.calculateNextDueDate(
+
+                            final plan = vm.plans
+                                .firstWhere((p) => p.id == vm.selectedPlanId);
+
+                            final dueDate = vm.calculateNextDueDate(
                               selectedDate,
-                              selectedPlanObj.durationMonths,
+                              plan.duration,
                             );
-      
+
                             final newMember = MemberModel(
                               name: nameController.text.trim(),
-                              mobile: mobileController.text.trim(),
-                              plan: vm.selectedPlan!,
-                              fees: double.parse(feesController.text),
+                              phone: mobileController.text.trim(),
+                              planId: plan.id!,
                               joinDate: selectedDate,
-                              nextDueDate: nextDueDate,
-                              isPaid: widget.member?.isPaid ?? false,
+                              lastPaidMonth: _formatMonth(selectedDate),
+                              dueDate: dueDate,
+                              pendingAmount: 0,
                             );
-      
+
                             if (widget.isEdit) {
-                              vm.updateMember(widget.member!, newMember);
-                              Navigator.pop(context); // go back after update
+                              await vm.updateMember(newMember);
+                              Navigator.pop(context);
                             } else {
-                              vm.addMember(newMember);
+                              await vm.addMember(newMember);
                               clearAll(vm);
                             }
-      
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   widget.isEdit
-                                      ? "Member Updated Successfully"
-                                      : "Member Added Successfully",
+                                      ? "Member Updated"
+                                      : "Member Added",
                                 ),
                               ),
                             );
                           },
                           child: Text(
-                            widget.isEdit ? "Update Member" : "Add Member",
-                          ),
+                              widget.isEdit ? "Update" : "Add Member"),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            clearAll(context.read<MemberViewModel>());
-                          },
-                          child: const Text("Clear All"),
+                          onPressed: () =>
+                              clearAll(context.read<MemberViewModel>()),
+                          child: const Text("Clear"),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-      
-            const SizedBox(height: 20),
-      
-            /// 🔥 SUGGESTED PRICES
-            _card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Suggested Prices",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-      
-                  ...vm.plans.map((plan) => _priceCard(plan, vm)).toList(),
                 ],
               ),
             ),
@@ -229,7 +179,8 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  /// 🔥 COMMON CARD
+  // ============================================================
+
   Widget _card({required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -241,7 +192,6 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  /// 🔥 TEXT FIELD
   Widget _textField(
     String hint,
     TextEditingController controller, {
@@ -259,7 +209,6 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  /// 🔥 DATE PICKER
   Widget _dateField() {
     return GestureDetector(
       onTap: () async {
@@ -281,35 +230,46 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  /// 🔥 DROPDOWN
   Widget _planDropdown(MemberViewModel vm) {
-    return DropdownButtonFormField<String>(
-      value: vm.selectedPlan,
-      items: vm.plans
-          .map((e) => DropdownMenuItem(value: e.name, child: Text(e.name)))
-          .toList(),
-      onChanged: (value) {
-        final plan = vm.plans.firstWhere((p) => p.name == value);
-        vm.selectPlan(plan);
-      },
-      decoration: InputDecoration(
-        hintText: "Select Plan",
-        filled: true,
-        fillColor: Colors.white10,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
+  final validValue = vm.plans.any((p) => p.id == vm.selectedPlanId)
+      ? vm.selectedPlanId
+      : null;
 
-  /// 🔥 NEXT DUE DATE
+  return DropdownButtonFormField<String>(
+    value: validValue, // ✅ IMPORTANT (NOT initialValue)
+
+    items: vm.plans.map((e) {
+      return DropdownMenuItem<String>(
+        value: e.id,
+        child: Text(e.type),
+      );
+    }).toList(),
+
+    onChanged: (value) {
+      vm.selectPlan(value); // ✅ uses notifyListeners
+    },
+
+    decoration: InputDecoration(
+      hintText: "Select Plan",
+      filled: true,
+      fillColor: Colors.white10,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  );
+}
+
   Widget _nextDueDate(MemberViewModel vm) {
-    if (vm.selectedPlan == null) {
+    if (vm.selectedPlanId == null) {
       return _fakeField("Next Due Date", "Auto-calculated");
     }
 
-    final plan = vm.plans.firstWhere((p) => p.name == vm.selectedPlan);
+    final plan =
+        vm.plans.firstWhere((p) => p.id == vm.selectedPlanId);
 
-    final nextDate = vm.calculateNextDueDate(selectedDate, plan.durationMonths);
+    final nextDate =
+        vm.calculateNextDueDate(selectedDate, plan.duration);
 
     return _fakeField(
       "Next Due Date",
@@ -329,31 +289,9 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  /// 🔥 PRICE CARD
-  Widget _priceCard(PlanModel plan, MemberViewModel vm) {
-    return GestureDetector(
-      onTap: () => vm.selectPlan(plan),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(plan.name),
-            Text(
-              "₹${plan.price}",
-              style: const TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  // ============================================================
+
+  String _formatMonth(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}";
   }
 }
