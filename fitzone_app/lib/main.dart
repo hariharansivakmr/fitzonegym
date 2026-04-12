@@ -30,9 +30,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => DashboardViewModel(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => MemberViewModel(),
-        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

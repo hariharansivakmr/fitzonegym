@@ -1,14 +1,14 @@
 import 'package:fitzone_app/pages/members/member_detail/member_detail_view.dart';
+import 'package:fitzone_app/pages/members/member_list/member_list_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../member_viewmodel.dart';
 
 class MemberListView extends StatelessWidget {
   const MemberListView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<MemberViewModel>();
+    final vm = context.watch<MemberListViewModel>();
 
     if (vm.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -22,7 +22,8 @@ class MemberListView extends StatelessWidget {
       itemCount: vm.members.length,
       itemBuilder: (context, index) {
         final member = vm.members[index];
-        final lastPayment = vm.getLastPayment(member.id!);
+        final status = vm.getStatus(member);
+        final color = vm.getStatusColor(member);
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -39,12 +40,22 @@ class MemberListView extends StatelessWidget {
 
                 const SizedBox(height: 4),
 
-                /// 🔥 Last Payment Info
-                Text(
-                  lastPayment != null
-                      ? "Last Paid: ₹${lastPayment.amountPaid} (${lastPayment.forMonth})"
-                      : "No Payments Yet",
-                  style: const TextStyle(fontSize: 12),
+                /// 🔥 STATUS BADGE
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -58,13 +69,12 @@ class MemberListView extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
 
-                /// 🔥 Paid / Unpaid
+                const SizedBox(height: 4),
+
+                /// 🔥 Due Date
                 Text(
-                  member.isPaid ? "Paid" : "Unpaid",
-                  style: TextStyle(
-                    color: member.isPaid ? Colors.green : Colors.red,
-                    fontSize: 12,
-                  ),
+                  _formatDate(member.dueDate),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
@@ -81,5 +91,9 @@ class MemberListView extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.day}/${date.month}/${date.year}";
   }
 }

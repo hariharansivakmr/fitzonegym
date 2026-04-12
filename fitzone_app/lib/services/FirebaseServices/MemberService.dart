@@ -6,7 +6,7 @@ class MemberService {
   final String _collection = "members";
 
   /// 🔥 ADD MEMBER
-  Future<void> addMember(Map<String, dynamic> data) async {
+  Future<String> addMember(Map<String, dynamic> data) async {
     try {
       final docRef = _firestore.collection(_collection).doc();
 
@@ -15,6 +15,7 @@ class MemberService {
       data['updatedAt'] = FieldValue.serverTimestamp();
 
       await docRef.set(data);
+      return docRef.id;
     } catch (e) {
       throw Exception("Error adding member: $e");
     }

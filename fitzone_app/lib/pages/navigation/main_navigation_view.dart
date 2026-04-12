@@ -1,4 +1,5 @@
 import 'package:fitzone_app/pages/members/members_view.dart';
+import 'package:fitzone_app/pages/payments/payment_view.dart';
 import 'package:flutter/material.dart';
 import '../dashboard/dashboard_view.dart';
 
@@ -16,7 +17,7 @@ class _MainNavigationViewState extends State<MainNavigationView> {
   final List<Widget> pages = const [
     DashboardView(),
     MembersView(),
-    Center(child: Text("Payments")),
+    PaymentsView(),
     Center(child: Text("Broadcast")),
     Center(child: Text("More")),
   ];

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MemberModel {
-  final String? id;
+  String id = "";
 
   final String name;
   final String phone;
@@ -21,7 +21,7 @@ class MemberModel {
   final DateTime? updatedAt;
 
   MemberModel({
-    this.id,
+    this.id = "",
     required this.name,
     required this.phone,
     required this.planId,

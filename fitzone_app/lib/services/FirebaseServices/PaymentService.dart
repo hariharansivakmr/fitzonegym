@@ -114,6 +114,7 @@ class PaymentService {
           .map((doc) => PaymentModel.fromMap(doc.data()))
           .toList();
     } catch (e) {
+      print("Error fetching payments for memberId: $memberId, error: $e");
       throw Exception("Error fetching payments: $e");
     }
   }

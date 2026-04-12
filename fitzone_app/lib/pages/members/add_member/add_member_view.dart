@@ -1,8 +1,9 @@
+import 'package:fitzone_app/pages/members/add_member/add_member_viewmodel.dart';
+import 'package:fitzone_app/pages/members/member_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../utilities/constants/app_colors.dart';
-import '../member_viewmodel.dart';
-import '../member_model.dart';
+
 
 class AddMemberView extends StatefulWidget {
   final bool isEdit;
@@ -20,37 +21,21 @@ class _AddMemberViewState extends State<AddMemberView> {
 
   DateTime selectedDate = DateTime.now();
 
-  @override
-  void initState() {
-    super.initState();
 
-    final vm = context.read<MemberViewModel>();
-    vm.selectedPlanId = null; // 🔥 RESET
-    vm.fetchPlans();
 
-    if (widget.isEdit && widget.member != null) {
-      final m = widget.member!;
-
-      nameController.text = m.name;
-      mobileController.text = m.phone;
-
-      selectedDate = m.joinDate;
-
-      vm.selectedPlanId = m.planId;
-    }
-  }
-
-  void clearAll(MemberViewModel vm) {
+  void clearAll(AddMemberViewModel vm) {
     nameController.clear();
     mobileController.clear();
     selectedDate = DateTime.now();
     vm.selectedPlanId = null;
+    vm.setPaymentType(PaymentType.none);
+    vm.amountController.clear();
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<MemberViewModel>();
+    final vm = context.watch<AddMemberViewModel>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -81,6 +66,15 @@ class _AddMemberViewState extends State<AddMemberView> {
                   _planDropdown(vm),
                   const SizedBox(height: 12),
 
+                  /// 🔥 NEW: PAYMENT TYPE
+                  _paymentTypeDropdown(vm),
+                  const SizedBox(height: 12),
+
+                  /// 🔥 NEW: AMOUNT FIELD
+                  if (vm.showAmountField) _amountField(vm),
+
+                  const SizedBox(height: 12),
+
                   _nextDueDate(vm),
                   const SizedBox(height: 16),
 
@@ -108,51 +102,46 @@ class _AddMemberViewState extends State<AddMemberView> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           onPressed: () async {
-                            final error = vm.validateMember(
-                              name: nameController.text,
-                              mobile: mobileController.text,
-                            );
-
-                            if (error != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error)),
-                              );
-                              return;
-                            }
-
-                            final plan = vm.plans
-                                .firstWhere((p) => p.id == vm.selectedPlanId);
+                            final plan = vm.plans.firstWhere(
+                                (p) => p.id == vm.selectedPlanId);
 
                             final dueDate = vm.calculateNextDueDate(
                               selectedDate,
                               plan.duration,
                             );
 
-                            final newMember = MemberModel(
+                            final member = MemberModel(
+                              id: widget.member?.id ?? "",
                               name: nameController.text.trim(),
                               phone: mobileController.text.trim(),
                               planId: plan.id!,
                               joinDate: selectedDate,
-                              lastPaidMonth: _formatMonth(selectedDate),
+                              lastPaidMonth:
+                                  vm.formatMonth(selectedDate),
                               dueDate: dueDate,
-                              pendingAmount: 0,
+                              pendingAmount: vm.selectedPaymentType == PaymentType.fullyPaid
+    ? 0
+    : plan.fees -
+        (double.tryParse(vm.amountController.text) ?? 0),
+                            );
+
+                            await vm.saveMember(
+                              member: member,
+                              plan: plan,
+                              isEdit: widget.isEdit,
                             );
 
                             if (widget.isEdit) {
-                              await vm.updateMember(newMember);
                               Navigator.pop(context);
                             } else {
-                              await vm.addMember(newMember);
                               clearAll(vm);
                             }
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(
-                                  widget.isEdit
-                                      ? "Member Updated"
-                                      : "Member Added",
-                                ),
+                                content: Text(widget.isEdit
+                                    ? "Member Updated"
+                                    : "Member Added"),
                               ),
                             );
                           },
@@ -164,7 +153,7 @@ class _AddMemberViewState extends State<AddMemberView> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () =>
-                              clearAll(context.read<MemberViewModel>()),
+                              clearAll(context.read<AddMemberViewModel>()),
                           child: const Text("Clear"),
                         ),
                       ),
@@ -181,31 +170,91 @@ class _AddMemberViewState extends State<AddMemberView> {
 
   // ============================================================
 
-  Widget _card({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
+  Widget _paymentTypeDropdown(AddMemberViewModel vm) {
+    return DropdownButtonFormField<PaymentType>(
+      value: vm.selectedPaymentType,
+      items: const [
+        DropdownMenuItem(
+            value: PaymentType.fullyPaid, child: Text("Fully Paid")),
+        DropdownMenuItem(
+            value: PaymentType.partiallyPaid,
+            child: Text("Partially Paid")),
+        DropdownMenuItem(
+            value: PaymentType.none, child: Text("None")),
+      ],
+      onChanged: (value) => vm.setPaymentType(value!),
+      decoration: InputDecoration(
+        hintText: "Payment Type",
+        filled: true,
+        fillColor: Colors.white10,
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      child: child,
     );
   }
 
-  Widget _textField(
-    String hint,
-    TextEditingController controller, {
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  Widget _amountField(AddMemberViewModel vm) {
     return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
+      controller: vm.amountController,
+      keyboardType: TextInputType.number,
       decoration: InputDecoration(
-        hintText: hint,
+        hintText: "Enter Amount",
         filled: true,
         fillColor: Colors.white10,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
+    );
+  }
+
+  Widget _planDropdown(AddMemberViewModel vm) {
+    final validValue = vm.plans.any((p) => p.id == vm.selectedPlanId)
+        ? vm.selectedPlanId
+        : null;
+
+    return DropdownButtonFormField<String>(
+      value: validValue,
+      items: vm.plans.map((e) {
+        return DropdownMenuItem(
+          value: e.id,
+          child: Text("${e.type} - ₹${e.fees}"),
+        );
+      }).toList(),
+      onChanged: (value) {
+      vm.selectPlan(value);
+
+      // 🔥 Find selected plan
+      final selectedPlan =
+          vm.plans.firstWhere((p) => p.id == value);
+
+      // 🔥 Set amount
+      vm.amountController.text =
+          selectedPlan.fees.toStringAsFixed(0);
+    },
+      decoration: InputDecoration(
+        hintText: "Select Plan",
+        filled: true,
+        fillColor: Colors.white10,
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _nextDueDate(AddMemberViewModel vm) {
+    if (vm.selectedPlanId == null) {
+      return _fakeField("Next Due Date", "Auto-calculated");
+    }
+
+    final plan =
+        vm.plans.firstWhere((p) => p.id == vm.selectedPlanId);
+
+    final nextDate =
+        vm.calculateNextDueDate(selectedDate, plan.duration);
+
+    return _fakeField(
+      "Next Due Date",
+      "${nextDate.day}/${nextDate.month}/${nextDate.year}",
     );
   }
 
@@ -230,53 +279,6 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  Widget _planDropdown(MemberViewModel vm) {
-  final validValue = vm.plans.any((p) => p.id == vm.selectedPlanId)
-      ? vm.selectedPlanId
-      : null;
-
-  return DropdownButtonFormField<String>(
-    value: validValue, // ✅ IMPORTANT (NOT initialValue)
-
-    items: vm.plans.map((e) {
-      return DropdownMenuItem<String>(
-        value: e.id,
-        child: Text(e.type),
-      );
-    }).toList(),
-
-    onChanged: (value) {
-      vm.selectPlan(value); // ✅ uses notifyListeners
-    },
-
-    decoration: InputDecoration(
-      hintText: "Select Plan",
-      filled: true,
-      fillColor: Colors.white10,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-    ),
-  );
-}
-
-  Widget _nextDueDate(MemberViewModel vm) {
-    if (vm.selectedPlanId == null) {
-      return _fakeField("Next Due Date", "Auto-calculated");
-    }
-
-    final plan =
-        vm.plans.firstWhere((p) => p.id == vm.selectedPlanId);
-
-    final nextDate =
-        vm.calculateNextDueDate(selectedDate, plan.duration);
-
-    return _fakeField(
-      "Next Due Date",
-      "${nextDate.day}/${nextDate.month}/${nextDate.year}",
-    );
-  }
-
   Widget _fakeField(String title, String value) {
     return Container(
       width: double.infinity,
@@ -289,9 +291,29 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  // ============================================================
-
-  String _formatMonth(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}";
+  Widget _textField(String hint, TextEditingController controller,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white10,
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
+
+  Widget _card({required Widget child}) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: child,
+  );
+}
 }

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'member_list/member_list_view.dart';
+import 'member_list/member_list_viewmodel.dart';
+
 import 'add_member/add_member_view.dart';
+import 'add_member/add_member_viewmodel.dart';
+
 import '../../../utilities/constants/app_colors.dart';
 
 class MembersView extends StatefulWidget {
@@ -35,11 +41,21 @@ class _MembersViewState extends State<MembersView>
           ],
         ),
       ),
+
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          MemberListView(),
-          AddMemberView(),
+        children: [
+          /// 🔥 MEMBER LIST VM
+          ChangeNotifierProvider(
+            create: (_) => MemberListViewModel(),
+            child: const MemberListView(),
+          ),
+
+          /// 🔥 ADD MEMBER VM
+          ChangeNotifierProvider(
+            create: (_) => AddMemberViewModel(),
+            child: const AddMemberView(),
+          ),
         ],
       ),
     );

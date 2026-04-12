@@ -64,17 +64,22 @@ class PlanService {
   // ============================================================
 
   Future<PlanModel?> getPlanById(String id) async {
-    try {
-      final doc = await _firestore.collection(collection).doc(id).get();
+  try {
+    final snapshot = await _firestore
+        .collection(collection)
+        .where('id', isEqualTo: id)
+        .get();
 
-      if (doc.exists) {
-        return PlanModel.fromMap(doc.data()!);
-      }
+    if (snapshot.docs.isNotEmpty) {
+      return PlanModel.fromMap(snapshot.docs.first.data());
+    } else {
+      print("Plan with id: $id not found");
       return null;
-    } catch (e) {
-      throw Exception("Error fetching plan: $e");
     }
+  } catch (e) {
+    throw Exception("Error fetching plan: $e");
   }
+}
 
   // ============================================================
   // ✏️ UPDATE PLAN
