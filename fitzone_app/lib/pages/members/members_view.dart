@@ -53,7 +53,7 @@ class _MembersViewState extends State<MembersView>
 
           /// 🔥 ADD MEMBER VM
           ChangeNotifierProvider(
-            create: (_) => AddMemberViewModel(),
+            create: (_) => AddMemberViewModel('',false),
             child: const AddMemberView(),
           ),
         ],

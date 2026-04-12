@@ -159,10 +159,7 @@ Text(
     builder: (context) {
       return ChangeNotifierProvider(
         create: (_) {
-          final vm = AddMemberViewModel();
-
-          vm.init(widgetMember: member); // ✅ DIRECT CALL (NO POST FRAME)
-
+          final vm = AddMemberViewModel(member.id, true);//✅ DIRECT CALL (NO POST FRAME)
           return vm;
         },
         child: AddMemberView(

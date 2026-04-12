@@ -12,6 +12,7 @@ class AddMemberViewModel extends ChangeNotifier {
   final PaymentService _paymentService = PaymentService();
 
   bool isLoading = false;
+  bool isEdit = false;
   String? errorMessage;
 
   String? selectedPlanId;
@@ -23,17 +24,48 @@ class AddMemberViewModel extends ChangeNotifier {
 
   List<PlanModel> plans = [];
 
-  AddMemberViewModel() {
-  fetchPlans(); // ✅ important
+  final nameController = TextEditingController();
+  final mobileController = TextEditingController();
+
+  DateTime selectedDate = DateTime.now();
+
+  AddMemberViewModel(String? memberId, bool Edit) {
+    isLoading = true;
+  fetchPlans();
+
+  if (Edit && memberId != null) {
+    isEdit = Edit;
+    init(memberId);
+  }
 }
 
- void init({MemberModel? widgetMember}) {
-  if (widgetMember == null) return;
+Future<void> init(String memberId) async {
+  try {
+    final data = await _memberService.getMemberById(memberId);
 
-  selectedPlanId = widgetMember.planId;
-  selectedPaymentType = PaymentType.none;
+    if (data != null) {
+      final member = MemberModel.fromMap(data);
+      nameController.text = member.name;
+      mobileController.text = member.phone;
+      selectedDate = member.joinDate;
+      selectedPlanId = member.planId;
+      selectedPaymentType = PaymentType.none;
 
+      notifyListeners();
+      isLoading = false;
+    }
+  } catch (e) {
+    errorMessage = e.toString();
+  }
 }
+
+//  void init({MemberModel? widgetMember}) {
+//   if (widgetMember == null) return;
+
+//   selectedPlanId = widgetMember.planId;
+//   selectedPaymentType = PaymentType.none;
+
+// }
   void selectPlan(String? id) {
     selectedPlanId = id;
     notifyListeners();
@@ -66,6 +98,7 @@ class AddMemberViewModel extends ChangeNotifier {
       /// 🔥 1. SAVE MEMBER
       if (isEdit) {
         await _memberService.updateMember(
+          
             member.id!, member.toMap());
       } else {
         var memberId = await _memberService.addMember(member.toMap());

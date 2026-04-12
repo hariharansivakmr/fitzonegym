@@ -16,17 +16,14 @@ class AddMemberView extends StatefulWidget {
 }
 
 class _AddMemberViewState extends State<AddMemberView> {
-  final nameController = TextEditingController();
-  final mobileController = TextEditingController();
-
-  DateTime selectedDate = DateTime.now();
+  
 
 
 
   void clearAll(AddMemberViewModel vm) {
-    nameController.clear();
-    mobileController.clear();
-    selectedDate = DateTime.now();
+    vm.nameController.clear();
+    vm.mobileController.clear();
+    vm.selectedDate = DateTime.now();
     vm.selectedPlanId = null;
     vm.setPaymentType(PaymentType.none);
     vm.amountController.clear();
@@ -36,7 +33,9 @@ class _AddMemberViewState extends State<AddMemberView> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AddMemberViewModel>();
-
+    if (vm.isEdit && (vm.isLoading || vm.plans.isEmpty)) {
+              return const Center(child: CircularProgressIndicator());
+            }
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -50,17 +49,17 @@ class _AddMemberViewState extends State<AddMemberView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _textField("Full Name", nameController),
+                  _textField("Full Name", vm.nameController),
                   const SizedBox(height: 12),
 
                   _textField(
                     "Mobile Number",
-                    mobileController,
+                    vm.mobileController,
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 12),
 
-                  _dateField(),
+                  _dateField(vm),
                   const SizedBox(height: 12),
 
                   _planDropdown(vm),
@@ -103,21 +102,23 @@ class _AddMemberViewState extends State<AddMemberView> {
                           ),
                           onPressed: () async {
                             final plan = vm.plans.firstWhere(
-                                (p) => p.id == vm.selectedPlanId);
+                                (p) => p.id == vm.selectedPlanId,
+                                orElse: () => vm.plans.first,
+                              );
 
                             final dueDate = vm.calculateNextDueDate(
-                              selectedDate,
+                              vm.selectedDate,
                               plan.duration,
                             );
 
                             final member = MemberModel(
                               id: widget.member?.id ?? "",
-                              name: nameController.text.trim(),
-                              phone: mobileController.text.trim(),
+                              name: vm.nameController.text.trim(),
+                              phone: vm.mobileController.text.trim(),
                               planId: plan.id!,
-                              joinDate: selectedDate,
+                              joinDate: vm.selectedDate,
                               lastPaidMonth:
-                                  vm.formatMonth(selectedDate),
+                                  vm.formatMonth(vm.selectedDate),
                               dueDate: dueDate,
                               pendingAmount: vm.selectedPaymentType == PaymentType.fullyPaid
     ? 0
@@ -224,8 +225,10 @@ class _AddMemberViewState extends State<AddMemberView> {
       vm.selectPlan(value);
 
       // 🔥 Find selected plan
-      final selectedPlan =
-          vm.plans.firstWhere((p) => p.id == value);
+      final selectedPlan = vm.plans.firstWhere(
+  (p) => p.id == value,
+  orElse: () => vm.plans.first,
+);
 
       // 🔥 Set amount
       vm.amountController.text =
@@ -246,11 +249,13 @@ class _AddMemberViewState extends State<AddMemberView> {
       return _fakeField("Next Due Date", "Auto-calculated");
     }
 
-    final plan =
-        vm.plans.firstWhere((p) => p.id == vm.selectedPlanId);
+    final plan = vm.plans.firstWhere(
+  (p) => p.id == vm.selectedPlanId,
+  orElse: () => vm.plans.first,
+);
 
     final nextDate =
-        vm.calculateNextDueDate(selectedDate, plan.duration);
+        vm.calculateNextDueDate(vm.selectedDate, plan.duration);
 
     return _fakeField(
       "Next Due Date",
@@ -258,23 +263,23 @@ class _AddMemberViewState extends State<AddMemberView> {
     );
   }
 
-  Widget _dateField() {
+  Widget _dateField(AddMemberViewModel vm) {
     return GestureDetector(
       onTap: () async {
         final picked = await showDatePicker(
           context: context,
-          initialDate: selectedDate,
+          initialDate: vm.selectedDate,
           firstDate: DateTime(2020),
           lastDate: DateTime(2100),
         );
 
         if (picked != null) {
-          setState(() => selectedDate = picked);
+          setState(() => vm.selectedDate = picked);
         }
       },
       child: _fakeField(
         "Join Date",
-        "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+        "${vm.selectedDate.day}/${vm.selectedDate.month}/${vm.selectedDate.year}",
       ),
     );
   }

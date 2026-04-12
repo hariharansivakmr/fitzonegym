@@ -1,9 +1,10 @@
 import 'package:fitzone_app/pages/dashboard/dashboard_model.dart';
+import 'package:fitzone_app/pages/members/member_model.dart';
+import 'package:fitzone_app/services/FirebaseServices/MemberService.dart';
+import 'package:fitzone_app/services/FirebaseServices/PaymentService.dart';
 import 'package:flutter/material.dart';
 
-import '../../pages/common/base_viewmodel.dart';
-
-class DashboardViewModel extends BaseViewModel {
+class DashboardViewModel extends ChangeNotifier {
 
   // 🔥 STATS
   int totalMembers = 0;
@@ -22,6 +23,16 @@ class DashboardViewModel extends BaseViewModel {
   // 🔥 PIE DATA
   double paidPercentage = 0;
   double unpaidPercentage = 0;
+
+  var memberService = MemberService();
+  var paymentService = PaymentService();
+
+  bool isLoading = true;
+
+  void setLoading(bool value) {
+    isLoading = value;
+    notifyListeners();
+  }
 
   // 🔥 ACTIONS (functions)
   void addMember() {
@@ -42,13 +53,20 @@ class DashboardViewModel extends BaseViewModel {
 
     await Future.delayed(const Duration(seconds: 2)); // simulate API
 
-    // 🔥 MOCK DATA (replace with API later)
-    totalMembers = 8;
-    newMembers = 0;
-    paidMembers = 5;
-    unpaidMembers = 3;
+    await memberService.getMembers().then((data) {
+      final members = data.map((e) => MemberModel.fromMap(e)).toList();
+      totalMembers = members.length;
+      paidMembers = members.where((m) => m.isPaid).length;
+      unpaidMembers = totalMembers - paidMembers;
+      newMembers = members.where((m) {
+        final now = DateTime.now();
+        return m.joinDate.year == now.year && m.joinDate.month == now.month;
+      }).length;
+    }).catchError((e) {
+      print("Error fetching members: $e");
+    });
 
-    totalRevenue = 30500;
+    totalRevenue = await paymentService.getTotalRevenue(); // ✅ implement this in PaymentService
 
     monthlyRevenue = [10000, 15000, 12000, 20000, 18000, 25000];
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];

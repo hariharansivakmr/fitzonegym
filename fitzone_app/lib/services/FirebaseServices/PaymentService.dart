@@ -99,6 +99,24 @@ class PaymentService {
   }
 
   // ============================================================
+  // 📥 GET TOTAL REVENUE
+  // ============================================================
+
+  Future<double> getTotalRevenue() async {
+    try {
+      final snapshot = await _firestore.collection(paymentCollection).get();
+      double total = 0;
+      for (var doc in snapshot.docs) {
+        total += (doc.data()['amountPaid'] ?? 0).toDouble();
+      }
+      return total;
+    } catch (e) {
+      print("Error calculating total revenue: $e");
+      return 0;
+    }
+  }
+
+  // ============================================================
   // 📥 GET PAYMENTS BY MEMBER
   // ============================================================
 
